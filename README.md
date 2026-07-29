@@ -31,17 +31,39 @@ timezones with the correct weekday for each.
 - **Overlap is computed in absolute UTC**, not by shifting clock times, so date-line
   crossings fall out naturally instead of being special-cased.
 - **US daylight saving is handled; China has no DST.** The offset is 15 hours in
-  summer and 16 in winter, which changes real answers — on the sample roster,
-  9 of 17 students get a different best match in January than in August.
+  summer and 16 in winter, so the same session reads an hour earlier on the Pacific
+  side all winter.
 - **Weekends that straddle a DST transition are flagged**, since Pacific clocks
   change at 02:00 Sunday while Beijing does not move.
 - **Transition edge cases are handled explicitly.** Pacific Sunday 01:00–04:00 is
   2 real hours in March and 4 in November. The nonexistent 02:30 (spring forward)
   shifts forward; the doubled 01:30 (fall back) resolves to the first occurrence.
 
-Because a recurring "Saturday 9am" block means a different real instant depending on
-the date, overlap is always computed against an explicit **reference weekend** you
-pick in the header.
+## Session slots
+
+Sessions are fixed **30-minute slots from 07:00 to 13:00 Beijing time**, Saturday and
+Sunday — 24 slots a week, the last being 12:30–13:00. Both sides tick boxes on the same
+grid; each just sees it on their own clock:
+
+| | Student picks (Beijing) | Tutor sees (Pacific) |
+| --- | --- | --- |
+| Summer (PDT) | Sat / Sun 07:00–13:00 | **Fri / Sat** 16:00–22:00 |
+| Winter (PST) | Sat / Sun 07:00–13:00 | **Fri / Sat** 15:00–21:00 |
+
+The grid is anchored in Beijing time because China has no DST, so a slot always means
+the same real moment. Two things follow from that:
+
+- Overlap becomes an exact **set intersection** of slot IDs rather than interval
+  arithmetic, so it cannot silently go wrong across the date line.
+- Pairings stay **stable across the US clock change** — only the Pacific label moves,
+  not who matches whom.
+
+The one rough edge it creates: over winter the earliest Saturday slot lands at 15:00
+Friday Pacific, during US school hours. The tool flags that as a weakness rather than
+hiding it.
+
+Because the Pacific label of a slot depends on the date, everything is rendered against
+an explicit **reference weekend** you pick in the header.
 
 ## Matching
 
@@ -49,7 +71,7 @@ Suggestions are ranked out of 100:
 
 | Factor | Weight | Notes |
 | --- | ---: | --- |
-| Schedule overlap | 35 | **Hard gate** — zero overlap is never suggested |
+| Shared slots | 35 | **Hard gate** — no shared slot is never suggested |
 | Subject / goal fit | 25 | shared focus areas |
 | Level appropriateness | 20 | gated, with a marginal-suggestions override |
 | Shared interests | 10 | free-text, e.g. basketball, piano |
@@ -57,11 +79,12 @@ Suggestions are ranked out of 100:
 
 Every score comes with its reasoning — what makes it good and where it's fragile:
 
-> **3 h of overlap across 2 blocks:** Sat 09:00–11:00 Beijing · Fri 18:00–20:00 PDT
+> **10 shared 30-min slots (5 h):** Sat 08:00–11:00 Beijing · Fri 17:00–20:00 PDT
 > **Both listed:** conversation, reading
-> **Tutor has 1 of 3 slots open**
-> ⚠ Only one shared time block — fragile if either side cancels
-> ⚠ 2 other unassigned students also rank this tutor first, but only 1 slot remains
+> **Shared interests:** basketball, movies
+> **Tutor has 1 of 2 slots open** (1 already assigned)
+> ⚠ This is the tutor's last open slot
+> ⚠ 1 other unassigned student also ranks this tutor first, but only 1 slot remains
 
 Existing pairings are preserved by default. Only unmatched students get proposals.
 
@@ -78,16 +101,15 @@ Existing pairings are preserved by default. Only unmatched students get proposal
 State is held in memory only — nothing is written to browser storage.
 
 - **Export JSON** is your save file. **Import JSON** restores it.
-- **CSV import** for tutor and student rosters; **CSV export** of the final
-  pairing list, with overlap hours and both timezones per pair.
+- It round-trips everything: both rosters, selected slots, and existing pairings.
 
 Export before closing the tab, or you'll lose the session.
 
 ## Self-tests
 
-The header runs 26 assertions on every load, covering DST boundaries to the minute,
-date-line crossings, the nonexistent and doubled hours, weekday labelling on both
-sides, and the scoring gates. The panel expands itself if anything fails.
+The header runs 27 assertions on every load, covering DST boundaries to the minute,
+date-line crossings, the nonexistent and doubled hours, the shape of the session grid,
+slot intersection, and the scoring gates. The panel expands itself if anything fails.
 
 ## Out of scope
 
