@@ -1,11 +1,6 @@
 # efcpairing
 
-Pairing system for tutors/students based on interest, skill, and — the hard part —
-schedule overlap across a 15/16-hour timezone gap.
-
-US-based volunteer tutors are matched with students in mainland China for weekend
-one-on-one English speaking practice. Pairing is the only genuinely difficult part
-of running the club; scheduling, reminders, and attendance stay in WeChat.
+Pairing system for tutors/students based on interest, skill, and scheduling, prev done manually but this is inefficient and there have already been efforts to fix this. I propose a new system that only aims to fix what is currently not optimal about English Tutoring
 
 ## Usage
 
@@ -16,7 +11,7 @@ Click **Load sample data** for a demo roster of 12 tutors and 20 students that
 exercises the tricky cases.
 
 The tool is admin-facing. There are no logins. It *suggests* pairings and never
-assigns them — you make the call with one click.
+assigns them — you make the call with one click (human-in-the-loop)
 
 ## The timezone problem
 
@@ -25,15 +20,13 @@ Tutors enter availability in **US Pacific**. Students enter it in **Beijing time
 
 | Tutor (Pacific) | Student (Beijing) |
 | --- | --- |
-| Friday 17:00–20:00 | **Saturday** 08:00–11:00 |
-| Saturday 17:00–20:00 | **Sunday** 08:00–11:00 |
-| Sunday 17:00–20:00 | **Monday** 08:00–11:00 — useless, it's a school day |
+| Friday 17:00–17:30 | **Saturday** 08:00–8:30 |
+| Saturday 21:00–21:30 | **Sunday** 12:00–12:30 |
+| Sunday 17:00–20:00 | **Monday** 08:00–11:00 — useless it's a school day |
 
 Saturday morning in China is Friday afternoon in California, so the weekday label
 differs on each side of every match. Every overlap is displayed in **both**
 timezones with the correct weekday for each.
-
-A few things this gets right that a naive hour-offset would not:
 
 - **Overlap is computed in absolute UTC**, not by shifting clock times, so date-line
   crossings fall out naturally instead of being special-cased.
