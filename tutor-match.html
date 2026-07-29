@@ -1,0 +1,983 @@
+<meta charset="utf-8">
+<title>Tutor–Student Matching</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --bg:#f7f7f5; --panel:#fff; --ink:#1c1c1a; --dim:#6b6b66; --line:#e0e0da;
+  --accent:#2f5d8a; --ok:#2d6a4f; --warn:#8a5a1e; --bad:#9b2c2c; --chip:#eeeeea;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#17181a; --panel:#1f2124; --ink:#e6e6e3; --dim:#9a9a95; --line:#33363a;
+         --accent:#8ab4e8; --ok:#79c9a4; --warn:#e0b070; --bad:#e88b8b; --chip:#2a2d31; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+     font:14px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px}
+h1{font-size:15px;font-weight:600;margin:0 12px 0 0;display:inline-block}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;background:var(--panel);color:var(--ink);border:1px solid var(--line);
+       border-radius:5px;padding:4px 10px;cursor:pointer}
+button:hover{border-color:var(--dim)}
+button.primary{background:var(--accent);color:#fff;border-color:transparent}
+button.danger{color:var(--bad)}
+input,select,textarea{font:inherit;background:var(--panel);color:var(--ink);
+       border:1px solid var(--line);border-radius:5px;padding:3px 6px}
+textarea{width:100%;min-height:38px;resize:vertical}
+nav{display:flex;gap:2px;padding:8px 16px 0;border-bottom:1px solid var(--line);background:var(--panel)}
+nav button{border-radius:5px 5px 0 0;border-bottom-color:transparent;margin-bottom:-1px}
+nav button.on{background:var(--bg);border-color:var(--line);border-bottom-color:var(--bg);font-weight:600}
+main{padding:16px;max-width:1080px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:12px;margin-bottom:10px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:8px}
+label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--dim)}
+label>input,label>select{font-size:14px;color:var(--ink)}
+.w-name{width:180px}.w-num{width:64px}.w-sel{width:130px}.w-wide{width:280px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+.chips label{flex-direction:row;align-items:center;gap:4px;background:var(--chip);
+  border-radius:12px;padding:2px 9px;font-size:12px;color:var(--ink);cursor:pointer}
+.avail{margin:6px 0}
+.blk{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.derived{font-size:12px;color:var(--dim);border-top:1px dashed var(--line);padding-top:6px;margin-top:8px}
+.derived b{color:var(--ink);font-weight:600}
+.sub{font-size:12px;color:var(--dim)}
+.muted{color:var(--dim)}
+.hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.hd h2{font-size:14px;margin:0}
+h3{font-size:13px;margin:18px 0 8px;color:var(--dim);font-weight:600;
+   text-transform:uppercase;letter-spacing:.04em}
+.cand{border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin:7px 0;background:var(--bg)}
+.cand.top{border-color:var(--accent)}
+.score{font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent)}
+ul.why{margin:5px 0 0;padding-left:17px}
+ul.why li{margin:1px 0}
+ul.why li.w{color:var(--warn)}
+.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--chip);color:var(--dim)}
+.pill.bad{background:rgba(155,44,44,.14);color:var(--bad)}
+.pill.ok{background:rgba(45,106,79,.14);color:var(--ok)}
+.pill.warn{background:rgba(138,90,30,.16);color:var(--warn)}
+.prob{border-left:3px solid var(--warn);padding:6px 10px;margin:6px 0;background:var(--panel);border-radius:0 5px 5px 0}
+.prob.bad{border-left-color:var(--bad)}
+details summary{cursor:pointer;font-size:12px;color:var(--dim);padding:4px 0}
+#tests li{list-style:none;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+#tests .p{color:var(--ok)}#tests .f{color:var(--bad)}
+#tests ul{padding-left:0;margin:4px 0}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;
+  justify-content:center;padding:20px}
+.modal>div{background:var(--panel);border-radius:8px;padding:16px;max-width:760px;width:100%}
+.modal textarea{min-height:280px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.hide{display:none}
+code{background:var(--chip);padding:1px 4px;border-radius:3px;font-size:12px}
+.tz{font-variant-numeric:tabular-nums}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:12px}
+</style>
+
+<header>
+  <div class="bar">
+    <h1>Tutor–Student Matching</h1>
+    <label style="flex-direction:row;align-items:center;gap:5px">Weekend of
+      <input type="date" id="week"></label>
+    <span id="tzinfo" class="sub tz"></span>
+    <span style="flex:1"></span>
+    <button id="btnSample">Load sample data</button>
+    <button id="btnImport">Import JSON</button>
+    <button id="btnExport">Export JSON</button>
+    <button id="btnPairCsv">Export pairings CSV</button>
+    <button id="btnClear" class="danger">Clear</button>
+  </div>
+  <details id="tests"><summary id="testSum"></summary><div id="testBody"></div></details>
+</header>
+<nav>
+  <button data-view="tutors">Tutors</button>
+  <button data-view="students">Students</button>
+  <button data-view="matching">Matching</button>
+</nav>
+<main id="main"></main>
+<div id="modal" class="modal hide"></div>
+<input type="file" id="filein" class="hide" accept=".json,.csv,text/plain">
+
+<script>
+"use strict";
+/* ==========================================================================
+   1. TIMEZONE CORE  — pure functions, no DOM, no globals beyond constants.
+   Tutors live in US Pacific (DST). Students live in Beijing (UTC+8, no DST).
+   ========================================================================== */
+const MIN = 60000, HOUR = 3600000, DAY = 86400000;
+const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAYS = ['fri','sat','sun'];            // weekend blocks we accept
+const DAY_OFF = {fri:-1, sat:0, sun:1};      // days from the reference Saturday
+
+// nth occurrence of `weekday` in a month, as UTC midnight ms.
+function nthWeekdayUTC(year, monthIdx, weekday, n){
+  const first = Date.UTC(year, monthIdx, 1);
+  const firstWd = new Date(first).getUTCDay();
+  return Date.UTC(year, monthIdx, 1 + ((weekday - firstWd + 7) % 7) + (n - 1) * 7);
+}
+// US DST begins 2nd Sunday of March at 02:00 local standard time = 10:00 UTC (Pacific).
+const dstStartUTC = y => nthWeekdayUTC(y, 2, 0, 2) + 10 * HOUR;
+// US DST ends 1st Sunday of November at 02:00 local daylight time = 09:00 UTC (Pacific).
+const dstEndUTC   = y => nthWeekdayUTC(y, 10, 0, 1) + 9 * HOUR;
+
+function pacificOffsetMin(utcMs){
+  const y = new Date(utcMs).getUTCFullYear();
+  return (utcMs >= dstStartUTC(y) && utcMs < dstEndUTC(y)) ? -420 : -480;
+}
+const ZONES = {
+  PT: {name:'Pacific', std:-480, alt:-420, offsetAt:pacificOffsetMin,
+       abbr:m => pacificOffsetMin(m) === -420 ? 'PDT' : 'PST'},
+  CN: {name:'Beijing', std:480,  alt:480,  offsetAt:() => 480, abbr:() => 'CST'}
+};
+
+/* Convert a wall-clock instant (expressed as if the local fields were UTC) into
+   a true UTC instant for `zone`.
+   Conventions at transitions:
+     - spring-forward gap  (02:00–02:59 does not exist): shifted forward one hour
+     - fall-back ambiguity (01:00–01:59 happens twice):  first (daylight) occurrence */
+function wallToUtc(wallMs, zone){
+  const z = ZONES[zone];
+  if (z.std === z.alt) return wallMs - z.std * MIN;
+  const Us = wallMs - z.std * MIN;            // candidate assuming standard time
+  const Ua = wallMs - z.alt * MIN;            // candidate assuming daylight time (earlier)
+  const o1 = z.offsetAt(Us), o2 = z.offsetAt(Ua);
+  if (o1 === o2) return wallMs - o1 * MIN;                 // unambiguous
+  if (o1 === z.std && o2 === z.alt) return Ua;             // ambiguous → first occurrence
+  return Us;                                               // nonexistent → shift forward
+}
+function utcToWall(utcMs, zone){
+  const off = ZONES[zone].offsetAt(utcMs);
+  const d = new Date(utcMs + off * MIN);
+  return {wd:d.getUTCDay(), h:d.getUTCHours(), m:d.getUTCMinutes(),
+          abbr:ZONES[zone].abbr(utcMs), off};
+}
+const pad = n => String(n).padStart(2,'0');
+const hm  = w => pad(w.h) + ':' + pad(w.m);
+const fmtAt = (utcMs, zone) => { const w = utcToWall(utcMs, zone); return WD[w.wd] + ' ' + hm(w); };
+function fmtRange(iv, zone){
+  const a = utcToWall(iv.s, zone), b = utcToWall(iv.e, zone);
+  return WD[a.wd] + ' ' + hm(a) + '–' + (b.wd !== a.wd ? WD[b.wd] + ' ' : '') + hm(b);
+}
+
+/* ==========================================================================
+   2. AVAILABILITY & OVERLAP  — pure
+   A block is {day:'fri'|'sat'|'sun', start:minutes, end:minutes} in its own zone.
+   weekSatMs is UTC-midnight of the reference Saturday.
+   ========================================================================== */
+function blockToInterval(block, zone, weekSatMs){
+  const base = weekSatMs + DAY_OFF[block.day] * DAY;
+  return {s:wallToUtc(base + block.start * MIN, zone),
+          e:wallToUtc(base + block.end   * MIN, zone), day:block.day};
+}
+function intersect(a, b){
+  const s = Math.max(a.s, b.s), e = Math.min(a.e, b.e);
+  return e > s ? {s, e} : null;             // touching endpoints are NOT an overlap
+}
+function mergeIntervals(list){
+  const xs = list.slice().sort((a,b) => a.s - b.s), out = [];
+  for (const iv of xs){
+    const last = out[out.length - 1];
+    if (last && iv.s <= last.e) last.e = Math.max(last.e, iv.e);
+    else out.push({s:iv.s, e:iv.e});
+  }
+  return out;
+}
+/** Genuine overlap between Pacific tutor blocks and Beijing student blocks. */
+function computeOverlaps(tutorBlocks, studentBlocks, weekSatMs){
+  const T = tutorBlocks.map(b => blockToInterval(b, 'PT', weekSatMs));
+  const S = studentBlocks.map(b => blockToInterval(b, 'CN', weekSatMs));
+  const hits = [];
+  for (const t of T) for (const s of S){ const x = intersect(t, s); if (x) hits.push(x); }
+  return mergeIntervals(hits);
+}
+const totalMin = ivs => ivs.reduce((a, iv) => a + (iv.e - iv.s) / MIN, 0);
+const hrs = m => (m / 60).toFixed(1).replace(/\.0$/, '');
+
+/* An overlap shown in both zones at once, weekday labelled per side. */
+function bothZones(iv){
+  return fmtRange(iv,'CN') + ' Beijing  ·  ' + fmtRange(iv,'PT') + ' ' + utcToWall(iv.s,'PT').abbr;
+}
+/* Flag hours that are unpleasant on either end. */
+function awkwardHours(ivs){
+  const notes = [];
+  for (const iv of ivs){
+    const p = utcToWall(iv.s,'PT'), pe = utcToWall(iv.e,'PT');
+    const c = utcToWall(iv.s,'CN'), ce = utcToWall(iv.e,'CN');
+    if (p.h < 7) notes.push('starts ' + hm(p) + ' Pacific — very early for the tutor');
+    else if (pe.h >= 22 || (pe.h === 0 && pe.m > 0)) notes.push('runs to ' + hm(pe) + ' Pacific — late for the tutor');
+    if (c.h < 7) notes.push('starts ' + hm(c) + ' Beijing — very early for the student');
+    else if (ce.h >= 22 || (ce.h === 0 && ce.m > 0)) notes.push('runs to ' + hm(ce) + ' Beijing — late for the student');
+  }
+  return [...new Set(notes)];
+}
+
+/* ==========================================================================
+   3. MATCHING  — pure given (tutor, student, ctx)
+   ========================================================================== */
+const LEVELS = ['beginner','intermediate','advanced'];
+const FOCUS  = ['conversation','reading','writing','test prep','pronunciation','vocabulary','presentation'];
+const li = l => LEVELS.indexOf(l);
+
+function buildCtx(state){
+  const load = {};
+  for (const t of state.tutors) load[t.id] = t.priorLoad;
+  for (const s of state.students) if (s.tutorId && load[s.tutorId] !== undefined) load[s.tutorId]++;
+  return {load, weekSatMs:weekMs(state.weekSat)};
+}
+
+/** Returns a full evaluation: score breakdown, blockers, reasons, weaknesses. */
+function evaluate(tutor, student, ctx){
+  const load = ctx.load[tutor.id] ?? 0;
+  const remaining = tutor.maxStudents - load;
+  const ov = computeOverlaps(tutor.avail, student.avail, ctx.weekSatMs);
+  const mins = totalMin(ov);
+  const inLevel = li(student.level) >= li(tutor.levelMin) && li(student.level) <= li(tutor.levelMax);
+  const shFocus = tutor.focus.filter(f => student.goals.includes(f));
+  const shInt   = tutor.interests.filter(i => student.interests.includes(i));
+
+  const blockers = [];
+  if (mins === 0)     blockers.push('schedule');
+  if (remaining <= 0) blockers.push('capacity');
+  if (!inLevel)       blockers.push('level');
+
+  const width = li(tutor.levelMax) - li(tutor.levelMin) + 1;
+  const parts = {
+    schedule:  35 * Math.min(1, mins / 180),
+    subject:   25 * Math.min(1, shFocus.length / Math.max(1, Math.min(tutor.focus.length, student.goals.length))),
+    level:     inLevel ? 14 + 6 * (1 - (width - 1) / 2) : 0,
+    interests: 10 * Math.min(1, shInt.length / 2),
+    capacity:  remaining > 0 ? 10 * (1 - load / Math.max(1, tutor.maxStudents)) : 0
+  };
+  const score = Math.round(Object.values(parts).reduce((a,b) => a + b, 0));
+
+  // ---- plain-English reasoning ----
+  const why = [], weak = [];
+  if (mins > 0){
+    why.push(hrs(mins) + ' h of overlap across ' + ov.length + ' block' + (ov.length > 1 ? 's' : '') +
+             ': ' + ov.slice(0,2).map(bothZones).join(' | ') + (ov.length > 2 ? ' (+' + (ov.length-2) + ' more)' : ''));
+  }
+  if (shFocus.length) why.push('Both listed: ' + shFocus.join(', '));
+  if (inLevel) why.push('Student is ' + student.level + '; tutor covers ' +
+             (tutor.levelMin === tutor.levelMax ? tutor.levelMin + ' only' : tutor.levelMin + '–' + tutor.levelMax) +
+             (width === 1 ? ' (specialist)' : ''));
+  if (shInt.length) why.push('Shared interests: ' + shInt.join(', '));
+  if (remaining > 0) why.push('Tutor has ' + remaining + ' of ' + tutor.maxStudents + ' slot' +
+             (tutor.maxStudents > 1 ? 's' : '') + ' open' + (load ? ' (' + load + ' already assigned)' : ''));
+
+  if (mins === 0) weak.push('No overlapping time at all — cannot be paired.');
+  else {
+    if (ov.length === 1) weak.push('Only one shared time block — fragile if either side cancels.');
+    if (mins < 90) weak.push('Under 1.5 h of overlap per week.');
+    awkwardHours(ov).forEach(n => weak.push('Overlap ' + n + '.'));
+  }
+  if (!shFocus.length) weak.push('No overlap between tutor focus areas and student goals.');
+  if (!shInt.length)   weak.push('No shared outside interests listed.');
+  if (!inLevel) weak.push('Level mismatch: student is ' + student.level + ', tutor covers ' +
+             tutor.levelMin + '–' + tutor.levelMax + '.');
+  if (remaining === 1) weak.push("This is the tutor's last open slot.");
+  if (remaining <= 0)  weak.push('Tutor is at capacity (' + load + '/' + tutor.maxStudents + ').');
+
+  return {tutor, student, score, parts, ov, mins, inLevel, remaining, load,
+          shFocus, shInt, blockers, viable:blockers.length === 0,
+          marginal:blockers.length === 1 && blockers[0] === 'level', why, weak};
+}
+
+/** Ranked candidates for one student. `marginal` includes level-mismatched tutors. */
+function rank(student, state, ctx, marginal){
+  const evals = state.tutors.map(t => evaluate(t, student, ctx));
+  const keep = evals.filter(e => e.viable || (marginal && e.marginal));
+  keep.sort((a,b) => b.score - a.score || a.tutor.name.localeCompare(b.tutor.name));
+  return {all:evals, top:keep};
+}
+
+/** Why does this student have nothing? Reports the first gate that everyone fails. */
+function blockReason(evals){
+  const withOverlap = evals.filter(e => e.mins > 0);
+  if (!evals.length) return 'There are no tutors in the roster.';
+  if (!withOverlap.length)
+    return "No tutor's availability overlaps theirs at all, in either direction across the date line.";
+  const levelOk = withOverlap.filter(e => e.inLevel);
+  if (!levelOk.length)
+    return withOverlap.length + ' tutor(s) overlap on time, but none cover the ' +
+           evals[0].student.level + ' level.';
+  const free = levelOk.filter(e => e.remaining > 0);
+  if (!free.length)
+    return levelOk.length + ' tutor(s) fit on time and level, but all of them are at capacity.';
+  return 'No blocker found.';
+}
+
+/* ==========================================================================
+   4. SELF-TESTS
+   ========================================================================== */
+const TESTS = [];
+const test = (name, fn) => TESTS.push({name, fn});
+function eq(actual, expected, label){
+  const a = JSON.stringify(actual), b = JSON.stringify(expected);
+  if (a !== b) throw new Error((label ? label + ': ' : '') + 'expected ' + b + ', got ' + a);
+}
+const weekMs = iso => Date.parse(iso + 'T00:00:00Z');
+const B = (day, start, end) => ({day, start:toMin(start), end:toMin(end)});
+
+test('Pacific is PST (UTC−8) in January', () => eq(pacificOffsetMin(Date.UTC(2026,0,17,20)), -480));
+test('Pacific is PDT (UTC−7) in August',  () => eq(pacificOffsetMin(Date.UTC(2026,7,1,20)),  -420));
+test('Spring-forward boundary is 2026-03-08 10:00Z', () => {
+  eq(pacificOffsetMin(Date.UTC(2026,2,8,9,59)), -480, 'before');
+  eq(pacificOffsetMin(Date.UTC(2026,2,8,10,0)), -420, 'after');
+});
+test('Fall-back boundary is 2026-11-01 09:00Z', () => {
+  eq(pacificOffsetMin(Date.UTC(2026,10,1,8,59)), -420, 'before');
+  eq(pacificOffsetMin(Date.UTC(2026,10,1,9,0)),  -480, 'after');
+});
+test('Beijing is UTC+8 year-round (no DST)', () => {
+  eq(ZONES.CN.offsetAt(Date.UTC(2026,0,1)), 480);
+  eq(ZONES.CN.offsetAt(Date.UTC(2026,6,1)), 480);
+});
+test('Date line: Beijing Sat 09:00 = Pacific Fri 18:00 in summer (PDT)', () => {
+  const iv = blockToInterval(B('sat','09:00','10:00'), 'CN', weekMs('2026-08-01'));
+  eq(fmtAt(iv.s,'PT'), 'Fri 18:00');
+  eq(fmtAt(iv.s,'CN'), 'Sat 09:00');
+});
+test('Date line: Beijing Sat 09:00 = Pacific Fri 17:00 in winter (PST)', () => {
+  const iv = blockToInterval(B('sat','09:00','10:00'), 'CN', weekMs('2026-01-17'));
+  eq(fmtAt(iv.s,'PT'), 'Fri 17:00');
+});
+test('Overlap across the date line (summer): 3 h', () => {
+  const ov = computeOverlaps([B('fri','17:00','20:00')], [B('sat','08:00','11:00')], weekMs('2026-08-01'));
+  eq(ov.length, 1); eq(totalMin(ov), 180);
+  eq(fmtRange(ov[0],'CN'), 'Sat 08:00–11:00');
+  eq(fmtRange(ov[0],'PT'), 'Fri 17:00–20:00');
+});
+test('The same two blocks lose an hour in winter (PST)', () => {
+  const ov = computeOverlaps([B('fri','17:00','20:00')], [B('sat','08:00','11:00')], weekMs('2026-01-17'));
+  eq(totalMin(ov), 120, 'winter overlap');
+  eq(fmtRange(ov[0],'CN'), 'Sat 09:00–11:00');
+});
+test('Identical wall-clock weekends do NOT overlap (15 h apart)', () => {
+  eq(computeOverlaps([B('sat','09:00','12:00')], [B('sat','09:00','12:00')], weekMs('2026-08-01')), []);
+});
+test('Touching endpoints are not an overlap', () => {
+  // Pacific Sat 18:00–21:00 = Beijing Sun 09:00–12:00; student starts exactly at 12:00.
+  eq(computeOverlaps([B('sat','18:00','21:00')], [B('sun','12:00','13:00')], weekMs('2026-08-01')), []);
+});
+test('Spring-forward: Pacific Sun 01:00–04:00 is only 2 real hours', () => {
+  const iv = blockToInterval(B('sun','01:00','04:00'), 'PT', weekMs('2026-03-07'));
+  eq((iv.e - iv.s) / MIN, 120);
+});
+test('Fall-back: Pacific Sun 01:00–04:00 is 4 real hours', () => {
+  const iv = blockToInterval(B('sun','01:00','04:00'), 'PT', weekMs('2026-10-31'));
+  eq((iv.e - iv.s) / MIN, 240);
+});
+test('Nonexistent 02:30 PT on spring-forward day shifts to 03:30 PDT', () => {
+  const t = wallToUtc(Date.UTC(2026,2,8,2,30), 'PT');
+  eq(fmtAt(t,'PT'), 'Sun 03:30');
+});
+test('Ambiguous 01:30 PT on fall-back day resolves to the first (PDT) pass', () => {
+  const t = wallToUtc(Date.UTC(2026,10,1,1,30), 'PT');
+  eq(t, Date.UTC(2026,10,1,8,30));
+});
+test('Beijing Sun evening ↔ Pacific Sun early morning across the fall-back hour', () => {
+  const ov = computeOverlaps([B('sun','03:00','05:00')], [B('sun','19:00','21:00')], weekMs('2026-10-31'));
+  eq(totalMin(ov), 120);
+  eq(fmtRange(ov[0],'PT'), 'Sun 03:00–05:00');
+  eq(fmtRange(ov[0],'CN'), 'Sun 19:00–21:00');
+});
+test('Overlap totals sum across several blocks', () => {
+  const ov = computeOverlaps([B('fri','17:00','21:00'), B('sat','17:00','20:00')],
+                             [B('sat','08:00','11:00'), B('sun','08:00','10:00')], weekMs('2026-08-01'));
+  eq(ov.length, 2); eq(totalMin(ov), 300);
+});
+test('Merging: adjacent intersections collapse into one', () => {
+  eq(mergeIntervals([{s:0,e:100},{s:100,e:200},{s:400,e:500}]), [{s:0,e:200},{s:400,e:500}]);
+});
+test('Block ends at local midnight (end = 24:00) is handled', () => {
+  const iv = blockToInterval(B('sat','22:00','24:00'), 'CN', weekMs('2026-08-01'));
+  eq((iv.e - iv.s) / MIN, 120);
+  eq(fmtAt(iv.e,'CN'), 'Sun 00:00');
+});
+test('Zero overlap is a hard gate — never suggested', () => {
+  const ctx = {load:{t:0}, weekSatMs:weekMs('2026-08-01')};
+  const e = evaluate(TT({avail:[B('sat','09:00','12:00')]}), SS({avail:[B('sat','09:00','12:00')]}), ctx);
+  eq(e.viable, false); eq(e.blockers.includes('schedule'), true);
+});
+test('A tutor at max capacity is gated out', () => {
+  const ctx = {load:{t:2}, weekSatMs:weekMs('2026-08-01')};
+  const e = evaluate(TT({maxStudents:2}), SS({}), ctx);
+  eq(e.viable, false); eq(e.blockers.includes('capacity'), true);
+});
+test('Level mismatch is gated but flagged as marginal, not merely low-scoring', () => {
+  const ctx = {load:{t:0}, weekSatMs:weekMs('2026-08-01')};
+  const e = evaluate(TT({levelMin:'beginner', levelMax:'intermediate'}), SS({level:'advanced'}), ctx);
+  eq(e.viable, false); eq(e.marginal, true); eq(e.parts.level, 0);
+});
+test('Better subject fit scores higher, all else equal', () => {
+  const ctx = {load:{t:0}, weekSatMs:weekMs('2026-08-01')};
+  const good = evaluate(TT({focus:['conversation','reading']}), SS({goals:['conversation','reading']}), ctx);
+  const poor = evaluate(TT({focus:['writing','test prep']}),    SS({goals:['conversation','reading']}), ctx);
+  if (!(good.score > poor.score)) throw new Error('good ' + good.score + ' !> poor ' + poor.score);
+  eq(poor.weak.some(w => /No overlap between tutor focus/.test(w)), true);
+});
+test('Load balancing prefers the less-loaded tutor', () => {
+  const ctx = {load:{a:0, b:2}, weekSatMs:weekMs('2026-08-01')};
+  const light = evaluate(TT({id:'a', maxStudents:3}), SS({}), ctx);
+  const heavy = evaluate(TT({id:'b', maxStudents:3}), SS({}), ctx);
+  if (!(light.score > heavy.score)) throw new Error('light ' + light.score + ' !> heavy ' + heavy.score);
+});
+test('Every suggestion carries reasoning', () => {
+  const ctx = {load:{t:0}, weekSatMs:weekMs('2026-08-01')};
+  const e = evaluate(TT({}), SS({}), ctx);
+  eq(e.viable, true);
+  if (!e.why.length) throw new Error('no reasons produced');
+  eq(/h of overlap/.test(e.why[0]), true);
+});
+test('parseAvail round-trips through the compact text format', () => {
+  const a = parseAvail('fri 17:00-21:00; sat 08:00-10:30');
+  eq(a, [{day:'fri',start:1020,end:1260},{day:'sat',start:480,end:630}]);
+  eq(fmtAvail(a), 'fri 17:00-21:00; sat 08:00-10:30');
+});
+// fixtures for the matching tests: overlapping, well-matched by default
+function TT(o){ return Object.assign({id:'t', name:'T', grade:11, focus:['conversation'],
+  levelMin:'beginner', levelMax:'advanced', avail:[B('fri','17:00','20:00')], maxStudents:3,
+  priorLoad:0, interests:['music'], notes:''}, o); }
+function SS(o){ return Object.assign({id:'s', name:'S', grade:8, level:'intermediate',
+  goals:['conversation'], interests:['music'], avail:[B('sat','08:00','11:00')],
+  tutorId:null, notes:''}, o); }
+
+function runTests(){
+  return TESTS.map(t => {
+    try { t.fn(); return {name:t.name, ok:true}; }
+    catch (e){ return {name:t.name, ok:false, msg:e.message}; }
+  });
+}
+
+/* ==========================================================================
+   5. PARSING HELPERS
+   ========================================================================== */
+function toMin(s){                       // "17:30" → 1050 ; also accepts "24:00"
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s).trim());
+  return m ? (+m[1]) * 60 + (+m[2]) : 0;
+}
+const toHM = m => pad(Math.floor(m / 60) % 24) + ':' + pad(m % 60);
+const toHMfull = m => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
+function parseAvail(str){                // "fri 17:00-21:00; sat 08:00-10:00"
+  return String(str || '').split(/[;\n]/).map(s => s.trim()).filter(Boolean).map(s => {
+    const m = /^(fri|sat|sun)\w*\s+(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})$/i.exec(s);
+    return m ? {day:m[1].toLowerCase(), start:toMin(m[2]), end:toMin(m[3])} : null;
+  }).filter(Boolean);
+}
+const fmtAvail = a => a.map(b => b.day + ' ' + toHMfull(b.start) + '-' + toHMfull(b.end)).join('; ');
+const splitList = s => [...new Set(String(s || '').split(/[;,|]/).map(x => x.trim().toLowerCase()).filter(Boolean))];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let _uid = 0;
+const uid = p => p + (++_uid);
+
+function parseCSV(text){
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n'){ row.push(f); f = ''; rows.push(row); row = []; }
+    else if (c !== '\r') f += c;
+  }
+  if (f !== '' || row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== ''));
+}
+const toCSV = rows => rows.map(r => r.map(c => {
+  c = String(c ?? ''); return /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c;
+}).join(',')).join('\n');
+
+/* ==========================================================================
+   6. SAMPLE DATA  (in-memory only; exercises the hard cases)
+   ========================================================================== */
+// name, grade, focus, levelMin, levelMax, availability (Pacific), max, otherStudents, interests, notes
+const SAMPLE_T = [
+['Maya Chen',11,'conversation,reading','beginner','intermediate','fri 17:00-21:00; sat 17:00-20:00',2,1,'basketball,movies,baking','Already tutoring one student outside this roster.'],
+['Daniel Okafor',12,'conversation,test prep,writing','intermediate','advanced','fri 18:00-21:00; sat 18:00-21:00',3,0,'chess,debate,chemistry',''],
+['Priya Raman',10,'conversation,vocabulary','beginner','beginner','fri 17:00-20:00',2,0,'drawing,dinosaurs,swimming','Patient with absolute beginners.'],
+['Ethan Brooks',12,'test prep,writing,reading','intermediate','advanced','sat 17:00-21:00; sun 05:00-07:00',2,2,'economics,running','Full — do not add students.'],
+['Sofia Alvarez',11,'conversation,pronunciation','beginner','intermediate','fri 16:00-19:00; sat 08:00-10:00',4,0,'art,pandas,cooking',''],
+['Jonas Weber',10,'conversation,presentation','intermediate','advanced','sat 18:00-21:00',2,0,'theater,history,film',''],
+['Amara Nwosu',12,'reading,writing,vocabulary','beginner','intermediate','fri 17:00-19:00; sun 17:00-19:00',3,0,'novels,cats,photography',''],
+['Liam Novak',11,'conversation,reading','intermediate','intermediate','sat 04:00-07:00; sun 04:00-06:00',2,0,'singing,travel,k-pop','Happy to take very early Pacific slots.'],
+['Grace Kim',12,'test prep,writing','advanced','advanced','fri 19:00-21:00',2,0,'economics,chess','Only wants advanced test-prep students.'],
+['Noah Patel',10,'conversation,vocabulary,pronunciation','beginner','intermediate','fri 17:00-21:00; sat 17:00-21:00',4,0,'minecraft,soccer,lego',''],
+['Isabel Ruiz',11,'conversation,presentation,writing','intermediate','advanced','sat 17:00-19:00; sun 04:00-06:00',3,0,'piano,film,badminton',''],
+['Theo Lindqvist',12,'reading,conversation','beginner','intermediate','sun 17:00-20:00',2,0,'astronomy,guitar','Sunday evenings Pacific — lands on Monday in China.']
+];
+// name, grade, level, goals, interests, availability (Beijing), assigned tutor, notes
+const SAMPLE_S = [
+['Wang Yuxin',8,'intermediate','conversation,reading','basketball,movies','sat 08:00-11:00; sun 08:00-10:00','',''],
+['Li Haoran',9,'beginner','conversation,vocabulary','soccer,gaming','sat 08:00-10:00','',''],
+['Zhang Meiling',10,'advanced','test prep,writing','debate,science','sat 19:00-21:00; sun 09:00-11:00','',''],
+['Chen Zihao',7,'beginner','conversation,pronunciation','dinosaurs,drawing','sat 09:00-11:00','',''],
+['Liu Xinyi',11,'intermediate','conversation,presentation','piano,k-pop','sun 09:00-12:00; sun 19:00-21:00','',''],
+['Zhao Tianyu',8,'beginner','conversation,reading','robots,lego','sun 08:00-10:00','',''],
+['Sun Jiahui',12,'advanced','test prep,writing','chemistry,chess','sat 08:00-10:00','','Applying to US universities.'],
+['He Ruoxi',9,'intermediate','reading,writing','novels,cats','sat 08:00-11:00','Amara Nwosu',''],
+['Guo Chenxi',10,'intermediate','conversation,reading','basketball,movies','sat 08:00-11:00; sun 08:00-10:00','',''],
+['Xu Zilin',8,'beginner','conversation,vocabulary','swimming,minecraft','sat 09:00-11:00','',''],
+['Deng Yiran',11,'advanced','presentation,conversation','theater,history','sun 09:00-11:00','',''],
+['Feng Kaiwen',7,'beginner','conversation','cars,soccer','sat 10:00-12:00','',''],
+['Yang Siqi',10,'advanced','test prep,conversation','singing,travel','sat 20:00-22:00','','Only free late Saturday evening Beijing time.'],
+['Ma Junjie',9,'intermediate','reading,conversation','astronomy,guitar','sun 08:00-11:00','Theo Lindqvist','Paired last term.'],
+['Cao Wenjing',12,'advanced','writing,test prep','economics,running','sun 21:00-23:00','',''],
+['Lin Anqi',8,'beginner','conversation,reading','pandas,art','sat 08:00-10:00; sun 08:00-10:00','Sofia Alvarez',''],
+['Zhou Yuchen',11,'intermediate','conversation,writing','film,photography','sat 09:00-12:00','',''],
+['Tang Meixi',7,'beginner','pronunciation,conversation','dance,cooking','sun 09:00-11:00','',''],
+['Peng Haoyu',10,'intermediate','conversation,presentation','badminton,coding','sun 12:00-13:00','','Only one narrow window each week.'],
+['Qin Lulu',9,'beginner','conversation,vocabulary','horses,baking','sat 08:00-11:00','','']
+];
+function loadSample(){
+  _uid = 0;
+  const tutors = SAMPLE_T.map(r => ({id:uid('t'), name:r[0], grade:r[1], focus:splitList(r[2]),
+    levelMin:r[3], levelMax:r[4], avail:parseAvail(r[5]), maxStudents:r[6], priorLoad:r[7],
+    interests:splitList(r[8]), notes:r[9]}));
+  const byName = Object.fromEntries(tutors.map(t => [t.name, t.id]));
+  const students = SAMPLE_S.map(r => ({id:uid('s'), name:r[0], grade:r[1], level:r[2],
+    goals:splitList(r[3]), interests:splitList(r[4]), avail:parseAvail(r[5]),
+    tutorId:byName[r[6]] || null, notes:r[7]}));
+  S.tutors = tutors; S.students = students;
+}
+
+/* ==========================================================================
+   7. STATE
+   ========================================================================== */
+const S = {tutors:[], students:[], weekSat:'', marginal:false, view:'matching'};
+
+function nextSaturday(){
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  d.setUTCDate(d.getUTCDate() + ((6 - d.getUTCDay() + 7) % 7));
+  return d.toISOString().slice(0,10);
+}
+function snapToSaturday(iso){            // nearest Saturday; a Friday belongs to the weekend ahead
+  const ms = weekMs(iso);
+  if (isNaN(ms)) return S.weekSat;
+  const d = new Date(ms), wd = d.getUTCDay();
+  const back = (wd + 1) % 7, fwd = (6 - wd + 7) % 7;
+  d.setUTCDate(d.getUTCDate() + (fwd <= back ? fwd : -back));
+  return d.toISOString().slice(0,10);
+}
+const findT = id => S.tutors.find(t => t.id === id);
+const findS = id => S.students.find(s => s.id === id);
+const findRec = id => findT(id) || findS(id);
+
+function newTutor(){ return {id:uid('t'), name:'', grade:11, focus:['conversation'], levelMin:'beginner',
+  levelMax:'intermediate', avail:[{day:'fri', start:1020, end:1260}], maxStudents:2, priorLoad:0,
+  interests:[], notes:''}; }
+function newStudent(){ return {id:uid('s'), name:'', grade:8, level:'beginner', goals:['conversation'],
+  interests:[], avail:[{day:'sat', start:540, end:660}], tutorId:null, notes:''}; }
+
+/* ==========================================================================
+   8. RENDERING
+   ========================================================================== */
+const $ = s => document.querySelector(s);
+const main = $('#main');
+
+function opts(list, sel){ return list.map(o => `<option${o === sel ? ' selected' : ''}>${esc(o)}</option>`).join(''); }
+function chips(key, all, chosen){
+  return `<div class="chips">` + all.map(a =>
+    `<label><input type="checkbox" data-k="${key}" value="${esc(a)}"${chosen.includes(a) ? ' checked' : ''}>${esc(a)}</label>`
+  ).join('') + `</div>`;
+}
+function availEditor(blocks){
+  return `<div class="avail">` + blocks.map((b, i) => `<div class="blk">
+      <select data-k="day" data-bi="${i}">${opts(DAYS, b.day)}</select>
+      <input type="time" step="900" data-k="start" data-bi="${i}" value="${toHMfull(b.start)}">–
+      <input type="time" step="900" data-k="end" data-bi="${i}" value="${b.end === 1440 ? '23:59' : toHMfull(b.end)}">
+      <button data-act="rmblk" data-bi="${i}">×</button></div>`).join('') +
+    `<button data-act="addblk">+ time block</button></div>`;
+}
+/** The other side's clock, for whichever record we're looking at. */
+function derivedLine(rec){
+  const isT = rec.id[0] === 't';
+  const from = isT ? 'PT' : 'CN', to = isT ? 'CN' : 'PT';
+  const w = weekMs(S.weekSat);
+  const bad = rec.avail.filter(b => b.end <= b.start);
+  const lines = rec.avail.filter(b => b.end > b.start).map(b => {
+    const iv = blockToInterval(b, from, w);
+    return `<div>${esc(b.day)} ${toHMfull(b.start)}–${toHMfull(b.end)} ${ZONES[from].name}
+            &nbsp;→&nbsp; <b>${esc(fmtRange(iv, to))} ${ZONES[to].name}</b></div>`;
+  });
+  return (lines.length ? lines.join('') : '<div>No valid time blocks.</div>') +
+    (bad.length ? `<div style="color:var(--bad)">${bad.length} block(s) have end ≤ start and are ignored.</div>` : '');
+}
+
+function viewTutors(){
+  const ctx = buildCtx(S);
+  main.innerHTML = `<div class="hd"><h2>Tutors <span class="muted">(${S.tutors.length})</span>
+      <div class="sub">Availability is entered in <b>US Pacific</b> time.</div></h2>
+    <div><button data-act="add-tutor" class="primary">+ Tutor</button>
+      <button data-act="csv-in-t">Import CSV</button><button data-act="csv-out-t">Export CSV</button></div></div>` +
+    S.tutors.map(t => {
+      const load = ctx.load[t.id], assigned = S.students.filter(s => s.tutorId === t.id);
+      return `<div class="card" data-id="${t.id}">
+      <div class="row">
+        <label>Name<input class="w-name" data-k="name" value="${esc(t.name)}"></label>
+        <label>Grade<input class="w-num" type="number" data-k="grade" value="${t.grade}"></label>
+        <label>Max students<input class="w-num" type="number" min="0" data-k="maxStudents" value="${t.maxStudents}"></label>
+        <label>Other students<input class="w-num" type="number" min="0" data-k="priorLoad" value="${t.priorLoad}"
+          title="Students they already tutor who are not in this roster"></label>
+        <label>Takes levels<span><select class="w-sel" data-k="levelMin">${opts(LEVELS, t.levelMin)}</select>
+          → <select class="w-sel" data-k="levelMax">${opts(LEVELS, t.levelMax)}</select></span></label>
+        <span style="flex:1"></span>
+        <span class="pill ${load >= t.maxStudents ? 'bad' : 'ok'}">${load}/${t.maxStudents} filled</span>
+        <button data-act="del" class="danger">Delete</button>
+      </div>
+      <label>Focus areas</label>${chips('focus', FOCUS, t.focus)}
+      <div class="row"><label style="flex:1">Interests (free text, comma separated)
+        <input data-k="interests" value="${esc(t.interests.join(', '))}"></label></div>
+      <label>Weekend availability — Pacific</label>${availEditor(t.avail)}
+      <label>Notes<textarea data-k="notes">${esc(t.notes)}</textarea></label>
+      <div class="derived"><div class="dv">${derivedLine(t)}</div>
+        ${assigned.length ? `<div style="margin-top:4px">Assigned here: <b>${assigned.map(s => esc(s.name)).join(', ')}</b></div>` : ''}
+      </div></div>`;
+    }).join('') || `<p class="muted">No tutors yet.</p>`;
+}
+
+function viewStudents(){
+  main.innerHTML = `<div class="hd"><h2>Students <span class="muted">(${S.students.length})</span>
+      <div class="sub">Availability is entered in <b>Beijing</b> time (UTC+8).</div></h2>
+    <div><button data-act="add-student" class="primary">+ Student</button>
+      <button data-act="csv-in-s">Import CSV</button><button data-act="csv-out-s">Export CSV</button></div></div>` +
+    S.students.map(s => `<div class="card" data-id="${s.id}">
+      <div class="row">
+        <label>Name<input class="w-name" data-k="name" value="${esc(s.name)}"></label>
+        <label>Grade<input class="w-num" type="number" data-k="grade" value="${s.grade}"></label>
+        <label>English level<select class="w-sel" data-k="level">${opts(LEVELS, s.level)}</select></label>
+        <label>Current tutor<select class="w-sel" data-k="tutorId">
+          <option value="">— unassigned —</option>
+          ${S.tutors.map(t => `<option value="${t.id}"${s.tutorId === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}
+        </select></label>
+        <span style="flex:1"></span>
+        <button data-act="del" class="danger">Delete</button>
+      </div>
+      <label>Goals</label>${chips('goals', FOCUS, s.goals)}
+      <div class="row"><label style="flex:1">Interests (free text, comma separated)
+        <input data-k="interests" value="${esc(s.interests.join(', '))}"></label></div>
+      <label>Weekend availability — Beijing</label>${availEditor(s.avail)}
+      <label>Notes<textarea data-k="notes">${esc(s.notes)}</textarea></label>
+      <div class="derived"><div class="dv">${derivedLine(s)}</div></div></div>`).join('') || `<p class="muted">No students yet.</p>`;
+}
+
+function candidateHTML(e, idx, contention){
+  const weak = e.weak.slice();
+  // Only a problem when demand for this tutor exceeds the slots they have left.
+  if (contention > 0 && contention + 1 > e.remaining)
+    weak.push(contention + ' other unassigned student' + (contention > 1 ? 's' : '') +
+      ' also rank' + (contention > 1 ? '' : 's') + ' this tutor first, but only ' +
+      e.remaining + ' slot' + (e.remaining === 1 ? '' : 's') + ' remain' + (e.remaining === 1 ? 's' : '') + '.');
+  return `<div class="cand${idx === 0 ? ' top' : ''}">
+    <div class="hd"><h2>${idx + 1}. ${esc(e.tutor.name)} <span class="muted">grade ${e.tutor.grade}</span>
+      ${e.marginal ? '<span class="pill bad">out of level</span>' : ''}</h2>
+      <div><span class="score">${e.score}</span><span class="muted">/100</span>
+        <button data-act="accept" data-s="${e.student.id}" data-t="${e.tutor.id}" class="primary">Accept</button></div></div>
+    <ul class="why">${e.why.map(r => `<li>${esc(r)}</li>`).join('')}
+      ${weak.map(r => `<li class="w">${esc(r)}</li>`).join('')}</ul>
+    <div class="sub" style="margin-top:5px">schedule ${e.parts.schedule.toFixed(0)} ·
+      subject ${e.parts.subject.toFixed(0)} · level ${e.parts.level.toFixed(0)} ·
+      interests ${e.parts.interests.toFixed(0)} · capacity ${e.parts.capacity.toFixed(0)}</div></div>`;
+}
+
+function viewMatching(){
+  if (!S.tutors.length && !S.students.length){
+    main.innerHTML = `<div class="card"><p>No roster loaded.</p>
+      <p class="muted">Click <b>Load sample data</b> above for a demo roster, or import a JSON save file,
+      or add records in the Tutors / Students views.</p></div>`;
+    return;
+  }
+  const ctx = buildCtx(S);
+  const unassigned = S.students.filter(s => !s.tutorId);
+  const ranked = unassigned.map(s => ({student:s, ...rank(s, S, ctx, S.marginal)}));
+
+  // contention: how many students put the same tutor first
+  const firstCount = {};
+  ranked.forEach(r => { const t = r.top[0]; if (t) firstCount[t.tutor.id] = (firstCount[t.tutor.id] || 0) + 1; });
+
+  // ---------- problems ----------
+  const stuck = ranked.filter(r => !r.top.length);
+  const openTutors = S.tutors.filter(t => t.maxStudents - ctx.load[t.id] > 0);
+  const idleTutors = openTutors.map(t => {
+    const evs = unassigned.map(s => evaluate(t, s, ctx));
+    return {t, evs, any:evs.some(e => e.viable)};
+  }).filter(x => !x.any);
+  const broken = S.students.filter(s => s.tutorId).map(s => {
+    const t = findT(s.tutorId);
+    if (!t) return {s, t:null, msg:'Assigned tutor is no longer in the roster.'};
+    const e = evaluate(t, s, ctx);
+    if (e.mins === 0) return {s, t, msg:'No overlapping availability any more for the weekend of ' + S.weekSat + '.'};
+    if (!e.inLevel) return {s, t, msg:'Student is ' + s.level + ' but tutor now covers ' + t.levelMin + '–' + t.levelMax + '.'};
+    return null;
+  }).filter(Boolean);
+  const healthy = S.students.filter(s => s.tutorId && !broken.some(b => b.s.id === s.id))
+    .map(s => ({s, t:findT(s.tutorId), e:evaluate(findT(s.tutorId), s, ctx)}));
+
+  let html = `<div class="hd"><h2>Matching</h2><div>
+      <label style="flex-direction:row;align-items:center;gap:5px"><input type="checkbox" id="marg"${S.marginal ? ' checked' : ''}>
+        include out-of-level tutors as marginal suggestions</label></div></div>
+    <p class="sub">Existing pairings are preserved. Suggestions are proposed only for the
+      ${unassigned.length} unassigned student${unassigned.length === 1 ? '' : 's'};
+      accepting one updates tutor load and re-ranks everything else.</p>`;
+
+  const probs = stuck.length + idleTutors.length + broken.length;
+  html += `<h3>Needs your attention ${probs ? `<span class="pill bad">${probs}</span>` : `<span class="pill ok">none</span>`}</h3>`;
+  for (const r of stuck)
+    html += `<div class="prob bad"><b>${esc(r.student.name)}</b> (${esc(r.student.level)}, grade ${r.student.grade})
+      has no viable tutor. ${esc(blockReason(r.all))}
+      <div class="sub">Available ${esc(fmtAvail(r.student.avail))} Beijing
+        = ${esc(r.student.avail.map(b => fmtRange(blockToInterval(b,'CN',ctx.weekSatMs),'PT')).join('; '))} Pacific.</div></div>`;
+  for (const x of idleTutors)
+    html += `<div class="prob"><b>${esc(x.t.name)}</b> has ${x.t.maxStudents - ctx.load[x.t.id]} open slot(s)
+      but no viable unassigned student. ${esc(idleReason(x.evs, x.t))}
+      <div class="sub">Available ${esc(fmtAvail(x.t.avail))} Pacific
+        = ${esc(x.t.avail.map(b => fmtRange(blockToInterval(b,'PT',ctx.weekSatMs),'CN')).join('; '))} Beijing.</div></div>`;
+  for (const b of broken)
+    html += `<div class="prob bad">Existing pair <b>${esc(b.s.name)}</b> ↔ <b>${b.t ? esc(b.t.name) : '?'}</b> is no longer viable.
+      ${esc(b.msg)} <button data-act="unassign" data-s="${b.s.id}">Unassign</button></div>`;
+  if (!probs) html += `<p class="muted">No unmatched students, no idle tutors, no broken pairs.</p>`;
+
+  // ---------- suggestions ----------
+  html += `<h3>Suggestions for unassigned students</h3>`;
+  const withCands = ranked.filter(r => r.top.length);
+  html += withCands.length ? withCands.map(r => `<div class="card">
+      <div class="hd"><h2>${esc(r.student.name)} <span class="muted">grade ${r.student.grade} ·
+        ${esc(r.student.level)} · ${esc(r.student.goals.join(', ') || 'no goals listed')}</span></h2>
+        <span class="sub">${r.top.length} viable tutor${r.top.length === 1 ? '' : 's'}</span></div>
+      <div class="sub">Free ${esc(fmtAvail(r.student.avail))} Beijing${r.student.notes ? ' · ' + esc(r.student.notes) : ''}</div>
+      ${r.top.slice(0,3).map((e, i) => candidateHTML(e, i,
+          i === 0 ? (firstCount[e.tutor.id] || 1) - 1 : 0)).join('')}
+    </div>`).join('') : `<p class="muted">No unassigned students with viable tutors.</p>`;
+
+  // ---------- current pairings ----------
+  html += `<h3>Current pairings (${healthy.length} healthy)</h3>`;
+  html += healthy.length ? `<div class="card">` + healthy.map(p => `<div style="padding:4px 0;border-bottom:1px solid var(--line)">
+      <b>${esc(p.s.name)}</b> ↔ <b>${esc(p.t.name)}</b>
+      <span class="pill ok">${hrs(p.e.mins)} h/wk</span>
+      <button data-act="unassign" data-s="${p.s.id}">Unassign</button>
+      <div class="sub">${esc(p.e.ov.map(bothZones).join(' | '))}</div></div>`).join('') + `</div>`
+    : `<p class="muted">Nothing assigned yet.</p>`;
+
+  main.innerHTML = html;
+  $('#marg').onchange = e => { S.marginal = e.target.checked; render(); };
+}
+function idleReason(evs, t){
+  if (!evs.length) return 'There are no unassigned students.';
+  if (!evs.some(e => e.mins > 0)) return "No unassigned student's availability reaches these hours " +
+    "(check whether the blocks land on a weekday in China).";
+  if (!evs.some(e => e.mins > 0 && e.inLevel)) return 'Students do overlap on time, but none are in the ' +
+    t.levelMin + '–' + t.levelMax + ' range.';
+  return 'Blocked by another constraint.';
+}
+
+function render(){
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.view === S.view));
+  $('#week').value = S.weekSat;
+  const w = weekMs(S.weekSat);
+  const noon = d => pacificOffsetMin(wallToUtc(w + d * DAY + 12 * HOUR, 'PT'));
+  const offFri = noon(-1), offSun = noon(1);
+  const nm = o => o === -420 ? 'PDT' : 'PST';
+  $('#tzinfo').innerHTML = offFri === offSun
+    ? `Pacific is on ${nm(offFri)} (UTC${offFri/60}) this weekend · Beijing is UTC+8 · offset ${(480-offFri)/60} h`
+    : `<b style="color:var(--warn)">Clocks change mid-weekend:</b> Pacific is ${nm(offFri)} (UTC${offFri/60}) on Fri/Sat ` +
+      `and ${nm(offSun)} (UTC${offSun/60}) on Sun · Beijing is UTC+8 throughout · ` +
+      `offset ${(480-offFri)/60} h then ${(480-offSun)/60} h`;
+  ({tutors:viewTutors, students:viewStudents, matching:viewMatching}[S.view])();
+}
+
+/* ==========================================================================
+   9. EVENTS
+   ========================================================================== */
+document.querySelectorAll('nav button').forEach(b =>
+  b.onclick = () => { S.view = b.dataset.view; render(); });
+
+$('#week').onchange = e => { S.weekSat = snapToSaturday(e.target.value); render(); };
+
+main.addEventListener('change', e => {
+  const el = e.target, card = el.closest('[data-id]');
+  if (!card || !el.dataset.k) return;
+  const rec = findRec(card.dataset.id); if (!rec) return;
+  const k = el.dataset.k;
+  if (el.dataset.bi !== undefined){
+    const b = rec.avail[+el.dataset.bi];
+    if (k === 'day') b.day = el.value;
+    else b[k] = (k === 'end' && el.value === '23:59') ? 1440 : toMin(el.value);
+  } else if (el.type === 'checkbox'){
+    const set = new Set(rec[k]);
+    el.checked ? set.add(el.value) : set.delete(el.value);
+    rec[k] = FOCUS.filter(f => set.has(f));
+  } else if (k === 'interests'){ rec.interests = splitList(el.value); }
+  else if (k === 'tutorId'){ rec.tutorId = el.value || null; render(); return; }
+  else if (['grade','maxStudents','priorLoad'].includes(k)){ rec[k] = Math.max(0, +el.value || 0); }
+  else if (k === 'levelMin' || k === 'levelMax'){
+    rec[k] = el.value;
+    if (li(rec.levelMax) < li(rec.levelMin)) rec[k === 'levelMin' ? 'levelMax' : 'levelMin'] = el.value;
+    render(); return;
+  } else rec[k] = el.value;
+  const d = card.querySelector('.dv');            // refresh only the converted-times block
+  if (d) d.innerHTML = derivedLine(rec);
+});
+
+main.addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const act = b.dataset.act, card = b.closest('[data-id]'), rec = card && findRec(card.dataset.id);
+  if (act === 'add-tutor'){ S.tutors.unshift(newTutor()); render(); }
+  else if (act === 'add-student'){ S.students.unshift(newStudent()); render(); }
+  else if (act === 'del'){
+    if (!confirm('Delete ' + (rec.name || 'this record') + '?')) return;
+    if (rec.id[0] === 't'){ S.tutors = S.tutors.filter(t => t !== rec);
+      S.students.forEach(s => { if (s.tutorId === rec.id) s.tutorId = null; }); }
+    else S.students = S.students.filter(s => s !== rec);
+    render();
+  }
+  else if (act === 'addblk'){ rec.avail.push({day:'sat', start:540, end:660}); render(); }
+  else if (act === 'rmblk'){ rec.avail.splice(+b.dataset.bi, 1); render(); }
+  else if (act === 'accept'){ findS(b.dataset.s).tutorId = b.dataset.t; render(); }
+  else if (act === 'unassign'){ findS(b.dataset.s).tutorId = null; render(); }
+  else if (act === 'csv-out-t') download('tutors.csv', tutorsCSV(), 'text/csv');
+  else if (act === 'csv-out-s') download('students.csv', studentsCSV(), 'text/csv');
+  else if (act === 'csv-in-t') pickFile(txt => { importTutorsCSV(txt); render(); },
+    'Tutor CSV columns: name, grade, focus, levelMin, levelMax, availability, maxStudents, otherStudents, interests, notes\n' +
+    'availability example: fri 17:00-21:00; sat 08:00-10:00   (US Pacific)');
+  else if (act === 'csv-in-s') pickFile(txt => { importStudentsCSV(txt); render(); },
+    'Student CSV columns: name, grade, level, goals, interests, availability, tutor, notes\n' +
+    'availability example: sat 08:00-11:00; sun 09:00-12:00   (Beijing)');
+});
+
+/* ==========================================================================
+   10. IMPORT / EXPORT  (no localStorage — the exported JSON is the save file)
+   ========================================================================== */
+function download(name, text, mime){
+  const url = URL.createObjectURL(new Blob([text], {type:mime || 'text/plain'}));
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function modal(html){
+  const m = $('#modal'); m.className = 'modal'; m.innerHTML = '<div>' + html + '</div>';
+  m.onclick = e => { if (e.target === m || e.target.dataset.close !== undefined) m.className = 'modal hide'; };
+  return m;
+}
+let pendingFile = null;
+function pickFile(cb, hint){
+  const m = modal(`<h3 style="margin-top:0">Import</h3>
+    <pre class="sub" style="white-space:pre-wrap">${esc(hint || '')}</pre>
+    <p><button id="pf">Choose file…</button> or paste below:</p>
+    <textarea id="pt"></textarea>
+    <p style="text-align:right"><button data-close>Cancel</button>
+      <button id="pgo" class="primary">Import</button></p>`);
+  pendingFile = txt => { m.className = 'modal hide'; try { cb(txt); } catch (err){ alert('Import failed: ' + err.message); } };
+  m.querySelector('#pf').onclick = () => $('#filein').click();
+  m.querySelector('#pgo').onclick = () => pendingFile($('#pt').value);
+}
+$('#filein').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { const cb = pendingFile; e.target.value = ''; if (cb) cb(String(r.result)); };
+  r.readAsText(f);
+};
+
+$('#btnSample').onclick = () => { loadSample(); S.view = 'matching'; render(); };
+$('#btnClear').onclick = () => { if (confirm('Clear all tutors and students from memory?')){
+  S.tutors = []; S.students = []; render(); } };
+$('#btnExport').onclick = () => {
+  const json = JSON.stringify({version:1, weekSat:S.weekSat, tutors:S.tutors, students:S.students}, null, 2);
+  const m = modal(`<h3 style="margin-top:0">Export JSON — this is your save file</h3>
+    <textarea id="ex">${esc(json)}</textarea>
+    <p style="text-align:right"><button data-close>Close</button>
+      <button id="cp">Copy</button><button id="dl" class="primary">Download</button></p>`);
+  m.querySelector('#dl').onclick = () => download('tutor-match.json', json, 'application/json');
+  m.querySelector('#cp').onclick = () => { const t = m.querySelector('#ex'); t.select(); document.execCommand('copy'); };
+};
+$('#btnImport').onclick = () => pickFile(txt => {
+  const d = JSON.parse(txt);
+  S.tutors = (d.tutors || []).map(normTutor);
+  S.students = (d.students || []).map(normStudent);
+  if (d.weekSat) S.weekSat = d.weekSat;
+  _uid = S.tutors.length + S.students.length + 1000;
+  render();
+}, 'Paste or choose a JSON file previously produced by Export JSON.');
+
+function normTutor(t){
+  return {id:t.id || uid('t'), name:t.name || '', grade:+t.grade || 0,
+    focus:(t.focus || []).filter(f => FOCUS.includes(f)),
+    levelMin:LEVELS.includes(t.levelMin) ? t.levelMin : 'beginner',
+    levelMax:LEVELS.includes(t.levelMax) ? t.levelMax : 'advanced',
+    avail:(t.avail || []).filter(b => DAYS.includes(b.day)),
+    maxStudents:+t.maxStudents || 0, priorLoad:+t.priorLoad || 0,
+    interests:splitList((t.interests || []).join(',')), notes:t.notes || ''};
+}
+function normStudent(s){
+  return {id:s.id || uid('s'), name:s.name || '', grade:+s.grade || 0,
+    level:LEVELS.includes(s.level) ? s.level : 'beginner',
+    goals:(s.goals || []).filter(g => FOCUS.includes(g)),
+    interests:splitList((s.interests || []).join(',')),
+    avail:(s.avail || []).filter(b => DAYS.includes(b.day)),
+    tutorId:s.tutorId || null, notes:s.notes || ''};
+}
+const T_COLS = ['name','grade','focus','levelMin','levelMax','availability','maxStudents','otherStudents','interests','notes'];
+const S_COLS = ['name','grade','level','goals','interests','availability','tutor','notes'];
+function rowsToObjs(text, cols){
+  const rows = parseCSV(text);
+  if (!rows.length) return [];
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  const hasHeader = cols.some(c => head.includes(c.toLowerCase()));
+  const idx = c => hasHeader ? head.indexOf(c.toLowerCase()) : cols.indexOf(c);
+  return rows.slice(hasHeader ? 1 : 0).map(r => {
+    const o = {}; cols.forEach(c => { const i = idx(c); o[c] = i >= 0 ? (r[i] || '').trim() : ''; });
+    return o;
+  });
+}
+function importTutorsCSV(text){
+  const added = rowsToObjs(text, T_COLS).filter(o => o.name).map(o => normTutor({
+    name:o.name, grade:+o.grade, focus:splitList(o.focus), levelMin:o.levelMin || 'beginner',
+    levelMax:o.levelMax || 'advanced', avail:parseAvail(o.availability),
+    maxStudents:+o.maxStudents || 1, priorLoad:+o.otherStudents || 0,
+    interests:splitList(o.interests), notes:o.notes}));
+  S.tutors = S.tutors.concat(added);
+  alert('Imported ' + added.length + ' tutor(s).');
+}
+function importStudentsCSV(text){
+  const byName = Object.fromEntries(S.tutors.map(t => [t.name.toLowerCase(), t.id]));
+  const added = rowsToObjs(text, S_COLS).filter(o => o.name).map(o => normStudent({
+    name:o.name, grade:+o.grade, level:o.level || 'beginner', goals:splitList(o.goals),
+    interests:splitList(o.interests), avail:parseAvail(o.availability),
+    tutorId:byName[(o.tutor || '').toLowerCase()] || null, notes:o.notes}));
+  S.students = S.students.concat(added);
+  alert('Imported ' + added.length + ' student(s).');
+}
+const tutorsCSV = () => toCSV([T_COLS].concat(S.tutors.map(t =>
+  [t.name, t.grade, t.focus.join(';'), t.levelMin, t.levelMax, fmtAvail(t.avail),
+   t.maxStudents, t.priorLoad, t.interests.join(';'), t.notes])));
+const studentsCSV = () => toCSV([S_COLS].concat(S.students.map(s =>
+  [s.name, s.grade, s.level, s.goals.join(';'), s.interests.join(';'), fmtAvail(s.avail),
+   (findT(s.tutorId) || {}).name || '', s.notes])));
+
+$('#btnPairCsv').onclick = () => {
+  const ctx = buildCtx(S);
+  const rows = [['student','grade','level','tutor','tutorGrade','weeklyOverlapHours',
+                 'overlapBeijing','overlapPacific','sharedFocus','status']];
+  for (const s of S.students){
+    const t = findT(s.tutorId);
+    if (!t){ rows.push([s.name, s.grade, s.level, '', '', 0, '', '', '', 'UNASSIGNED']); continue; }
+    const e = evaluate(t, s, ctx);
+    rows.push([s.name, s.grade, s.level, t.name, t.grade, hrs(e.mins),
+      e.ov.map(iv => fmtRange(iv,'CN')).join('; '),
+      e.ov.map(iv => fmtRange(iv,'PT') + ' ' + utcToWall(iv.s,'PT').abbr).join('; '),
+      e.shFocus.join(';'),
+      e.mins === 0 ? 'NO OVERLAP — REVIEW' : (!e.inLevel ? 'LEVEL MISMATCH — REVIEW' : 'ok')]);
+  }
+  download('pairings-' + S.weekSat + '.csv', toCSV(rows), 'text/csv');
+};
+
+/* ==========================================================================
+   11. BOOT
+   ========================================================================== */
+(function boot(){
+  S.weekSat = nextSaturday();
+  const res = runTests(), passed = res.filter(r => r.ok).length;
+  $('#testSum').innerHTML = `Self-tests: <b style="color:var(--${passed === res.length ? 'ok' : 'bad'})">` +
+    `${passed}/${res.length} passing</b> — timezone, overlap and scoring assertions (click to expand)`;
+  $('#testBody').innerHTML = '<ul>' + res.map(r => `<li class="${r.ok ? 'p' : 'f'}">` +
+    `${r.ok ? '✓' : '✗'} ${esc(r.name)}${r.ok ? '' : ' — ' + esc(r.msg)}</li>`).join('') + '</ul>';
+  if (passed !== res.length) $('#tests').open = true;
+  render();
+})();
+</script>
